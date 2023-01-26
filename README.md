@@ -1,6 +1,8 @@
 # MojMapGML2GeoJSON.js
 [法務省登記所備付地図データ](https://www.moj.go.jp/MINJI/minji05_00494.html)のGeoJSONコンバータJavaScriptライブラリ
 
+## サンプル
+https://svgmap.github.io/MojMapGML2GeoJSON.js/MojMapGML2GeoJSONtest.html
 
 ## 使い方
 
