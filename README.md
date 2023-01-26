@@ -1,0 +1,2 @@
+# MojMapGML2GeoJSON.js
+法務省登記所備付地図データのGeoJSONコンバータJavaScriptライブラリ
