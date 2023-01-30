@@ -78,9 +78,8 @@ class MojMapGML2GeoJSON {
 					properties: props,
 					type: "Feature",
 				};
-				geojs.features.push(ft);
+				geojsRoot.features.push(ft);
 			}
-			geojsRoot.features.push(geojs);
 		}
 		return geojsRoot;
 	}
