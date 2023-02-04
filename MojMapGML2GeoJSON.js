@@ -35,15 +35,14 @@ class MojMapGML2GeoJSON {
 	}
 
 	static moj2geojson(moj, refTable, idTable) {
-		var geojsRoot = {
-			type: "FeatureCollection",
-			features: [],
+		var jsoRoot = {
+			geoObjects: {},
 			properties: {},
 		};
 
-		geojsRoot.properties = MojMapGML2GeoJSON.getRootProps(moj);
+		jsoRoot.properties = MojMapGML2GeoJSON.getRootProps(moj);
 
-		var kei = geojsRoot.properties["座標系"].match(/公共座標([0-9]+)系/);
+		var kei = jsoRoot.properties["座標系"].match(/公共座標([0-9]+)系/);
 		if (!kei) {
 			kei = -1;
 		} else {
@@ -63,25 +62,30 @@ class MojMapGML2GeoJSON {
 		}
 		//
 		var thema = moj["主題属性"];
+		var bbox = { minx: 9e99, miny: 9e99, maxx: -9e99, maxy: -9e99 };
 		for (var themaName in thema) {
 			var tds = thema[themaName];
 			var geojs = {
 				type: "FeatureCollection",
 				features: [],
-				properties: { 主題属性: themaName },
 			};
+			if (!Array.isArray(tds)) {
+				tds = [tds];
+			}
 			for (var td of tds) {
-				var gm = MojMapGML2GeoJSON.getGeometry(td, kei);
+				var gm = MojMapGML2GeoJSON.getGeometry(td, kei, bbox);
 				var props = MojMapGML2GeoJSON.getProperties(td);
 				var ft = {
 					geometry: gm,
 					properties: props,
 					type: "Feature",
 				};
-				geojsRoot.features.push(ft);
+				geojs.features.push(ft);
 			}
+			jsoRoot.geoObjects[themaName] = geojs;
 		}
-		return geojsRoot;
+		jsoRoot.properties.bbox = bbox;
+		return jsoRoot;
 	}
 
 	static excludeRootProps = [
@@ -118,13 +122,13 @@ class MojMapGML2GeoJSON {
 		"zmn:GM_Curve.segment": "LineString",
 	};
 
-	static getGeometry(ft, kei) {
+	static getGeometry(ft, kei, bbox) {
 		var gtype, crds;
 		var gmfeature = ft["形状"].content;
 		for (var attn in gmfeature) {
 			gtype = MojMapGML2GeoJSON.GMtypes[attn];
 			if (gtype) {
-				crds = MojMapGML2GeoJSON.getCoordinates(gmfeature, kei);
+				crds = MojMapGML2GeoJSON.getCoordinates(gmfeature, kei, null, bbox);
 				break;
 			}
 		}
@@ -158,7 +162,7 @@ class MojMapGML2GeoJSON {
 
 	static coordinateKeys = ["zmn:X", "zmn:Y"];
 
-	static getCoordinates(obj, kei, parentIds) {
+	static getCoordinates(obj, kei, parentIds, bbox) {
 		// いい加減だが・・このデータの場合、まぁこれで良いのでは・・
 		var crds = [];
 		if (!parentIds) {
@@ -184,6 +188,7 @@ class MojMapGML2GeoJSON {
 				x = latlng.longitude;
 				y = latlng.latitude;
 			}
+			MojMapGML2GeoJSON.updateBBox(x, y, bbox);
 			return [[x, y]];
 		} else {
 			for (var key in obj) {
@@ -191,13 +196,25 @@ class MojMapGML2GeoJSON {
 					if (key == "content" && obj["idref"] && pids[obj["idref"]]) {
 						// 循環参照　Skip
 					} else {
-						var crd = MojMapGML2GeoJSON.getCoordinates(obj[key], kei, pids);
+						var crd = MojMapGML2GeoJSON.getCoordinates(
+							obj[key],
+							kei,
+							pids,
+							bbox
+						);
 						crds = crds.concat(crd);
 					}
 				}
 			}
 			return crds;
 		}
+	}
+
+	static updateBBox(x, y, bbox) {
+		bbox.minx = Math.min(x, bbox.minx);
+		bbox.miny = Math.min(y, bbox.miny);
+		bbox.maxx = Math.max(x, bbox.maxx);
+		bbox.maxy = Math.max(y, bbox.maxy);
 	}
 
 	static xml2js(xml, refTable, idTable) {

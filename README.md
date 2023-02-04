@@ -10,8 +10,10 @@ ESModuleのライブラリになっています。
 
 ``` javascript
 import { MojMapGML2GeoJSON } from "./MojMapGML2GeoJSON.js";
-var geojs = MojMapGML2GeoJSON.convert(xmlDOM);
-JSON.stringify(geojs);
+var obj = MojMapGML2GeoJSON.convert(xmlDOM);
+for ( var themaName in obj.geoObjects){
+  var GeoJSONstr = JSON.stringify(obj.geoObjects[themaName]);
+}
 ```
 
 zipファイルを直接ダウンロードして使う
@@ -22,7 +24,7 @@ import { ZipDataDownloader } from "./ZipDataDownloader.js";
 var uzd = await ZipDataDownloader.download(zipFilePath);
 var r = uzd[0].content;
 var xmlDOM = new DOMParser().parseFromString(r, "text/xml");
-var geojs = MojMapGML2GeoJSON.convert(xmlDOM);
+var obj = MojMapGML2GeoJSON.convert(xmlDOM);
 ```
 
 ## ライセンス
