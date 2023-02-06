@@ -221,6 +221,9 @@ class MojMapGML2GeoJSON {
 						);
 						var crds = [extcrds];
 						if (obj[key][MojMapGML2GeoJSON.PolygonParts[2]]) {
+							if (Array.isArray(obj[key][MojMapGML2GeoJSON.PolygonParts[2]]) == false){
+								obj[key][MojMapGML2GeoJSON.PolygonParts[2]]=[obj[key][MojMapGML2GeoJSON.PolygonParts[2]]];
+							}
 							for (var ring of obj[key][MojMapGML2GeoJSON.PolygonParts[2]]) {
 								crds.push(
 									MojMapGML2GeoJSON.getCoordinates(ring, kei, pids, bbox)
