@@ -18,6 +18,9 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 // History:
+//  2023/01/26 1st release
+//  2023/02/06 ドーナツのポリゴンがあったので対応
+
 import { XY2BL } from "./XY2BL.js";
 
 class MojMapGML2GeoJSON {
@@ -29,7 +32,7 @@ class MojMapGML2GeoJSON {
 		var refTable = {};
 		var idTable = {};
 		var obj = MojMapGML2GeoJSON.xml2js(mojMapXmlDOM, refTable, idTable);
-		//console.log(obj);
+		// console.log("JSOBJ:",obj);
 		var geojs = MojMapGML2GeoJSON.moj2geojson(obj, refTable, idTable);
 		return geojs;
 	}
@@ -138,7 +141,7 @@ class MojMapGML2GeoJSON {
 		if (gtype == "Point") {
 			crds = crds[0];
 		} else if (gtype == "Polygon") {
-			crds = [crds];
+			//crds = [crds]; // 2023/02/06 少しちゃんとした処理にしたので不要
 		}
 
 		return {
@@ -148,22 +151,35 @@ class MojMapGML2GeoJSON {
 	}
 
 	static sumupEndStart(crds) {
-		var ans = [];
-		var prevp = null;
-		for (var p of crds) {
-			if (prevp && prevp[0] == p[0] && prevp[1] == p[1]) {
-			} else {
-				ans.push(p);
+		if (typeof crds[0][0] == "number") {
+			var ans = [];
+			var prevp = null;
+			for (var p of crds) {
+				if (prevp && prevp[0] == p[0] && prevp[1] == p[1]) {
+				} else {
+					ans.push(p);
+				}
+				prevp = p;
 			}
-			prevp = p;
+			return ans;
+		} else {
+			for (var i = 0; i < crds.length; i++) {
+				crds[i] = MojMapGML2GeoJSON.sumupEndStart(crds[i]);
+			}
+			return crds;
 		}
-		return ans;
 	}
 
 	static coordinateKeys = ["zmn:X", "zmn:Y"];
 
+	static PolygonParts = [
+		"zmn:GM_SurfaceBoundary",
+		"zmn:GM_SurfaceBoundary.exterior",
+		"zmn:GM_SurfaceBoundary.interior",
+	];
+
 	static getCoordinates(obj, kei, parentIds, bbox) {
-		// いい加減だが・・このデータの場合、まぁこれで良いのでは・・
+		// いい加減だが・・このデータの場合、まぁこれで良いのでは・・ 2022/02/06 ポリゴンのドーナツがあったので対尾
 		var crds = [];
 		if (!parentIds) {
 			parentIds = {}; // 循環参照抑止データ
@@ -195,6 +211,22 @@ class MojMapGML2GeoJSON {
 				if (typeof obj[key] == "object") {
 					if (key == "content" && obj["idref"] && pids[obj["idref"]]) {
 						// 循環参照　Skip
+					} else if (key == MojMapGML2GeoJSON.PolygonParts[0]) {
+						//ポリゴンはドーナツもあった・・・ 2023/2/6
+						var extcrds = MojMapGML2GeoJSON.getCoordinates(
+							obj[key][MojMapGML2GeoJSON.PolygonParts[1]],
+							kei,
+							pids,
+							bbox
+						);
+						var crds = [extcrds];
+						if (obj[key][MojMapGML2GeoJSON.PolygonParts[2]]) {
+							for (var ring of obj[key][MojMapGML2GeoJSON.PolygonParts[2]]) {
+								crds.push(
+									MojMapGML2GeoJSON.getCoordinates(ring, kei, pids, bbox)
+								);
+							}
+						}
 					} else {
 						var crd = MojMapGML2GeoJSON.getCoordinates(
 							obj[key],
