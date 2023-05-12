@@ -24,9 +24,11 @@ class ZipDataDownloader {
 	static download = async function (url, options) {
 		var progressCallBack;
 		var httpHeaders;
+		var charsetName;
 		if (options) {
 			progressCallBack = options.progress;
 			httpHeaders = options.headers;
+			charsetName = options.charset;
 		}
 
 		var response = await fetch(url, { headers: httpHeaders });
@@ -45,7 +47,8 @@ class ZipDataDownloader {
 		var storeResult = await ZipDataDownloader.#storeContents(
 			zipReader,
 			parentDirURL,
-			progressCallBack
+			progressCallBack,
+			charsetName
 		);
 		return storeResult;
 	};
@@ -55,14 +58,15 @@ class ZipDataDownloader {
 	static #storeContents = async function (
 		reader,
 		parentDirURL,
-		progressCallBack
+		progressCallBack,
+		charsetName
 	) {
 		var entries = await reader.getEntries();
 		var entLen = entries.length;
 		var storeCount = 0;
 		var ans = [];
 		for (var entry of entries) {
-			var ret = await ZipDataDownloader.#storeEntry(entry, parentDirURL);
+			var ret = await ZipDataDownloader.#storeEntry(entry, parentDirURL,charsetName);
 			++storeCount;
 			if (progressCallBack) {
 				progressCallBack(storeCount / entLen);
@@ -72,7 +76,7 @@ class ZipDataDownloader {
 		return ans;
 	};
 
-	static #storeEntry = async function (entry, parentDirURL) {
+	static #storeEntry = async function (entry, parentDirURL,charsetName) {
 		if (entry.directory) {
 			return { result: "skip" };
 		}
@@ -85,7 +89,7 @@ class ZipDataDownloader {
 			ret = await ZipDataDownloader.#blobToDataURL(cBlob);
 			//console.log(await ZipDataDownloader.#blobToDataURL(cBlob));
 		} else {
-			ret = await ZipDataDownloader.#getText(cBlob);
+			ret = await ZipDataDownloader.#getText(cBlob, charsetName);
 			if (cBlob.type.indexOf("json") >= 0) {
 				if (ret) {
 					ret = JSON.parse(ret);
@@ -162,7 +166,7 @@ class ZipDataDownloader {
 	}
 
 	// https://qiita.com/koushisa/items/4a3e98358a7ce110aeec
-	static #getText(blob) {
+	static #getText(blob,charsetName) {
 		var fileReader = new FileReader();
 
 		return new Promise((resolve, reject) => {
@@ -174,8 +178,12 @@ class ZipDataDownloader {
 			fileReader.onload = () => {
 				resolve(fileReader.result);
 			};
-
-			fileReader.readAsText(blob);
+			
+			if ( charsetName ){
+				fileReader.readAsText(blob, charsetName);
+			} else {
+				fileReader.readAsText(blob);
+			}
 		});
 	}
 	//https://stackoverflow.com/questions/68725158/converting-blob-to-data-url
